@@ -9,6 +9,9 @@ public class Main {
         DataRetriever dataRetriever = new DataRetriever(new DBConnection());
 
         System.out.println(dataRetriever.findByDishId(1));
-        System.out.println(dataRetriever.findByDishId(999));
+        // System.out.println(dataRetriever.findByDishId(999));
+
+        System.out.println(dataRetriever.findIngredients(2, 2));
+        System.out.println(dataRetriever.findIngredients(3, 5));
     }
 }

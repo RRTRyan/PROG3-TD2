@@ -35,7 +35,7 @@ public class DataRetriever {
             double  price = resultSet.getDouble("price");
             CategoryEnum category = CategoryEnum.valueOf(resultSet.getString("category"));
 
-            if (dish != null) dish.getIngredients().add(new Ingredient(ing_id, name, price, category, dish));
+            if (dish != null) new Ingredient(ing_id, name, price, category, dish);
         }
         preparedStatement.close();
         connection.close();
@@ -46,7 +46,37 @@ public class DataRetriever {
     }
 
     public List<Ingredient> findIngredients(int page, int size) throws SQLException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Connection connection = dbConnection.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(
+                """
+                SELECT i.id as ingredientId, i.name as ingredientName, i.price, i.category
+                     , d.id as dishId, d.name as dishName, dish_type as dishType  
+                FROM ingredient as i LEFT JOIN dish as d ON d.id = i.id_dish
+                OFFSET ? LIMIT ?
+                """
+        );
+        preparedStatement.setInt(1, (page - 1) * size);
+        preparedStatement.setInt(2, size);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        List<Ingredient> ingredients = new ArrayList<>();
+        while (resultSet.next()) {
+            ingredients.add(new Ingredient(
+                    resultSet.getInt("ingredientId"),
+                    resultSet.getString("ingredientName"),
+                    resultSet.getDouble("price"),
+                    CategoryEnum.valueOf(resultSet.getString("category")),
+                    new Dish(
+                            resultSet.getInt("dishId"),
+                            resultSet.getString("dishName"),
+                            DishTypeEnum.valueOf(resultSet.getString("dishType")),
+                            new ArrayList<>()
+                    )
+                )
+            );
+        }
+        preparedStatement.close();
+        connection.close();
+        return ingredients;
     }
 
     public List<Ingredient> createIngredients(List<Ingredient> newIngredients) throws SQLException {
