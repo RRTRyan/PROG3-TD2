@@ -15,7 +15,7 @@ public class Ingredient {
         this.price = price;
         this.category = category;
         this.dish = dish;
-        this.dish.getIngredients().add(this);
+        if (this.dish != null) this.dish.getIngredients().add(this);
     }
 
     public int getId() {
@@ -56,7 +56,7 @@ public class Ingredient {
 
     public void setDish(Dish dish) {
         this.dish = dish;
-        this.dish.getIngredients().add(this);
+        if (this.dish != null) this.dish.getIngredients().add(this);
     }
 
     @Override
@@ -66,7 +66,7 @@ public class Ingredient {
                 ", name='" + name + '\'' +
                 ", price=" + price +
                 ", category=" + category +
-                ", dishName=" + dish.getName() +
+                ", dishName=" + getDishName() +
                 '}';
     }
 
@@ -82,6 +82,6 @@ public class Ingredient {
     }
 
     public String getDishName() {
-        return this.dish.getName();
+        return (this.dish != null) ? this.dish.getName() : null;
     }
 }

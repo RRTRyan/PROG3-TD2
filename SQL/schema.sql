@@ -8,8 +8,8 @@ CREATE TABLE dish (
 CREATE TYPE category_enum AS ENUM ('VEGETABLE', 'ANIMAL', 'MARINE', 'DAIRY', 'OTHER');
 CREATE TABLE ingredient (
   id SERIAL PRIMARY KEY,
-  "name" VARCHAR(100) NOT NULL,
+  "name" VARCHAR(100) NOT NULL UNIQUE,
   price NUMERIC(10,2) NOT NULL,
   category category_enum NOT NULL,
-  id_dish INT REFERENCES dish(id) NOT NULL
+  id_dish INT REFERENCES dish(id)
 );
