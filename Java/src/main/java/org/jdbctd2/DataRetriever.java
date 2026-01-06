@@ -57,9 +57,9 @@ public class DataRetriever {
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(
                     """
-                            SELECT i.id as ingredientId, i.name as ingredientName, i.price, i.category
-                                 , d.id as dishId, d.name as dishName, dish_type as dishType
-                            FROM ingredient as i LEFT JOIN dish as d ON d.id = i.id_dish
+                            SELECT i.id AS ingId, i.name AS ingName, i.price, i.category
+                                 , d.id AS dishId, d.name AS dishName, dish_type AS dishType
+                            FROM ingredient AS i LEFT JOIN dish AS d ON d.id = i.id_dish
                             OFFSET ? LIMIT ?
                             """
             );
@@ -104,7 +104,7 @@ public class DataRetriever {
             preparedStatement.executeUpdate();
 
             StringBuilder sql = new StringBuilder(
-                    "SELECT i.id as ingredientId, i.name as ingredientName, i.price, i.category " +
+                    "SELECT i.id as ingId, i.name as ingName, i.price, i.category " +
                             ", d.id as dishId, d.name as dishName, dish_type as dishType " +
                             "FROM ingredient as i LEFT JOIN dish as d ON d.id = i.id_dish " +
                             "WHERE 1 = 1"
@@ -139,7 +139,14 @@ public class DataRetriever {
         Connection connection = dbConnection.getConnection();
         try {
             connection.setAutoCommit(false);
-            Dish initialDish = findByDishId(dishToSave.getId());
+            Dish savedDish = null;
+
+            try {
+                savedDish = findByDishId(dishToSave.getId());
+            } catch (RuntimeException _) {
+            }
+
+            Dish initialDish = savedDish;
 
             if (initialDish != null) {
                 List<Ingredient> removedIngredients = initialDish.getIngredients().stream()
@@ -202,7 +209,6 @@ public class DataRetriever {
     public List<Dish> findDishsByIngredientName(String ingredientName) throws SQLException {
         Connection connection = dbConnection.getConnection();
         try {
-            connection.setAutoCommit(false);
             PreparedStatement preparedStatement = connection.prepareStatement(
                     "SELECT d.id AS dishId, d.name AS dishName, d.dish_type AS dishType FROM dish AS d JOIN ingredient ON d.id = id_dish WHERE ingredient.name ILIKE ?");
             preparedStatement.setString(1, '%' + ingredientName + '%');
@@ -218,7 +224,6 @@ public class DataRetriever {
             }
             return dishes;
         } catch (SQLException | RuntimeException e) {
-            connection.rollback();
             throw new RuntimeException(e);
         } finally {
             dbConnection.closeConnection(connection);
@@ -230,7 +235,40 @@ public class DataRetriever {
                                                       String dishName,
                                                       int page,
                                                       int size) throws SQLException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Connection connection = dbConnection.getConnection();
+        try {
+            StringBuilder query = new StringBuilder("SELECT i.id AS ingId, i.name AS ingName, i.price AS price, i.category AS category, id_dish AS dishId, d.name AS dishName, dish_type AS dishType FROM ingredient AS i JOIN dish AS d ON d.id = i.id_dish");
+            List<String> conditions = new ArrayList<>();
+            if (ingredientName != null ||  category != null ||  dishName != null) {
+                query.append(" WHERE ");
+                if (ingredientName != null) {
+                    conditions.add(" i.name ILIKE ? ");
+                }
+                if (category != null) {
+                    conditions.add(" i.category = CAST(? AS category_enum) ");
+                }
+                if (dishName != null) {
+                    conditions.add(" d.name ILIKE ? ");
+                }
+                query.append(conditions.stream().reduce((a,b) -> a + " AND " + b).get());
+            }
+            query.append(" LIMIT ? OFFSET ?");
+            PreparedStatement preparedStatement = connection.prepareStatement(query.toString());
+            int i = 1;
+            if (ingredientName != null) preparedStatement.setString(i++, '%' + ingredientName + '%');
+            if (category != null) preparedStatement.setString(i++, category.toString());
+            if (dishName != null) preparedStatement.setString(i++, '%' + dishName + '%');
+            preparedStatement.setInt(i++, (size > 0 ? size : 10));
+            preparedStatement.setInt(i++, (page > 0) ? ((page - 1) * size) : 1);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            List<Ingredient> ingredients = new ArrayList<>();
+            createIngredientList(resultSet, ingredients);
+            return ingredients;
+        } catch (SQLException | RuntimeException e) {
+            throw new RuntimeException(e);
+        } finally {
+            dbConnection.closeConnection(connection);
+        }
     }
 
     // Helper Functions
@@ -246,16 +284,18 @@ public class DataRetriever {
         while (resultSet.next()) {
 
             Dish dish = null;
-            if (resultSet.getObject("dishId") != null) new Dish(
-                    resultSet.getInt("dishId"),
-                    resultSet.getString("dishName"),
-                    DishTypeEnum.valueOf(resultSet.getString("dishType")),
-                    new ArrayList<>()
-            );
+            if (resultSet.getObject("dishId") != null) {
+                dish = new Dish(
+                        resultSet.getInt("dishId"),
+                        resultSet.getString("dishName"),
+                        DishTypeEnum.valueOf(resultSet.getString("dishType")),
+                        new ArrayList<>()
+                );
+            }
 
             ingredients.add(new Ingredient(
-                    resultSet.getInt("ingredientId"),
-                    resultSet.getString("ingredientName"),
+                    resultSet.getInt("ingId"),
+                    resultSet.getString("ingName"),
                     resultSet.getDouble("price"),
                     CategoryEnum.valueOf(resultSet.getString("category")),
                     dish
