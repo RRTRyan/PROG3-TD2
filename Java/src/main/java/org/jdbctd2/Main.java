@@ -25,6 +25,8 @@ public class Main {
         // System.out.println(dataRetriever.createIngredients(Arrays.asList(new Ingredient(7, "Fromage", 1200, CategoryEnum.DAIRY, null), new Ingredient(6, "Oignon", 500, CategoryEnum.VEGETABLE, null))));
         // System.out.println(dataRetriever.createIngredients(Arrays.asList(new Ingredient(8, "Carotte", 2000, CategoryEnum.VEGETABLE, null), new Ingredient(1, "Laitue", 2000, CategoryEnum.VEGETABLE, null))));
 
+        // System.out.println(dataRetriever.findDishsByIngredientName("eur"));
+
         // Dish soupeDeLegumes = new Dish(6, "Soupe de légumes", DishTypeEnum.START, new ArrayList<>());
         // new Ingredient(6, "Oignon", 500, CategoryEnum.VEGETABLE, soupeDeLegumes);
         // System.out.println(dataRetriever.saveDish(soupeDeLegumes));
