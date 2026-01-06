@@ -73,7 +73,7 @@ public class Ingredient {
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof Ingredient that)) return false;
-        return id == that.id && Double.compare(price, that.price) == 0 && Objects.equals(name, that.name) && category == that.category && Objects.equals(dish, that.dish);
+        return id == that.id && Double.compare(price, that.price) == 0 && Objects.equals(name, that.name) && category == that.category;
     }
 
     @Override
