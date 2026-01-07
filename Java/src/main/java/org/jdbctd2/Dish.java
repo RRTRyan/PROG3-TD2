@@ -8,12 +8,14 @@ public class Dish {
     private String name;
     private DishTypeEnum dishType;
     private List<Ingredient> ingredients;
+    private Double price;
 
     public Dish(int id, String name, DishTypeEnum dishType, List<Ingredient>  ingredients) {
         this.id = id;
         this.name = name;
         this.dishType = dishType;
         this.ingredients = ingredients;
+        this.price = null;
     }
 
     public int getId() {
@@ -48,6 +50,14 @@ public class Dish {
         this.ingredients = ingredients;
     }
 
+    public Double getPrice() {
+        return price;
+    }
+
+    public void setPrice(Double price) {
+        this.price = price;
+    }
+
     @Override
     public String toString() {
         return "Dish{" +
@@ -55,6 +65,7 @@ public class Dish {
                 ", name='" + name + '\'' +
                 ", dishType=" + dishType +
                 ", ingredients=" + ingredients +
+                ", price=" + price +
                 '}';
     }
 
@@ -69,8 +80,15 @@ public class Dish {
         return Objects.hash(id, name, dishType, ingredients);
     }
 
-    public double getDishPrice() {
+    public Double getDishCost() {
         return this.ingredients.stream().mapToDouble(Ingredient::getPrice).sum();
+    }
+
+    public Double getGrossMargin() {
+        if (this.price == null) {
+            throw new RuntimeException("Price is null");
+        }
+        return this.getPrice() - this.getDishCost();
     }
 
 }

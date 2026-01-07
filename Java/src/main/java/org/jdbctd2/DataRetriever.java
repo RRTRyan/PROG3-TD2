@@ -16,7 +16,7 @@ public class DataRetriever {
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(
                     """
-                            SELECT d.id AS dishId, d.name AS dishName, dish_type AS dishType,
+                            SELECT d.id AS dishId, d.name AS dishName, dish_type AS dishType, d.price AS dishPrice,
                                     i.id AS ingId, i.name AS ingName, i.price AS price, i.category AS category
                             FROM dish AS d LEFT JOIN ingredient AS i ON id_dish = d.id WHERE d.id = ?
                             """);
@@ -29,6 +29,11 @@ public class DataRetriever {
                     String dishName = resultSet.getString("dishName");
                     DishTypeEnum dishType = DishTypeEnum.valueOf(resultSet.getString("dishType"));
                     dish = new Dish(dishId, dishName, dishType, new ArrayList<>());
+                    if (resultSet.getObject("dishPrice") == null) {
+                        dish.setPrice(null);
+                    } else {
+                        dish.setPrice(resultSet.getDouble("dishPrice"));
+                    }
                 }
 
                 if (resultSet.getObject("ingId") != null) {
@@ -180,18 +185,29 @@ public class DataRetriever {
                 }
                 createIngredients(newIngredients);
 
-                PreparedStatement dishUpdateStatement = connection.prepareStatement("UPDATE dish SET dish_type = CAST(? AS dish_type_enum), name = ? WHERE id = ?");
+                PreparedStatement dishUpdateStatement = connection.prepareStatement("UPDATE dish SET dish_type = CAST(? AS dish_type_enum), name = ?, price = ? WHERE id = ?");
                 dishUpdateStatement.setString(1, dishToSave.getDishType().toString());
                 dishUpdateStatement.setString(2, dishToSave.getName());
-                dishUpdateStatement.setInt(3, dishToSave.getId());
+                if (dishToSave.getPrice() != null) {
+                    dishUpdateStatement.setDouble(3, dishToSave.getPrice());
+                } else {
+                    dishUpdateStatement.setNull(3, Types.DOUBLE);
+                }
+                dishUpdateStatement.setInt(4, dishToSave.getId());
+                System.out.println(dishUpdateStatement);
                 dishUpdateStatement.executeUpdate();
                 connection.commit();
 
             } else {
-                PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO dish VALUES (?, ?, CAST(? AS dish_type_enum))");
+                PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO dish VALUES (?, ?, CAST(? AS dish_type_enum), ?)");
                 preparedStatement.setInt(1, dishToSave.getId());
                 preparedStatement.setString(2, dishToSave.getName());
-                preparedStatement.setString(3, dishToSave.getDishType().toString());
+                if (dishToSave.getPrice() != null) {
+                    preparedStatement.setDouble(3, dishToSave.getPrice());
+                } else {
+                    preparedStatement.setNull(3, Types.DOUBLE);
+                }
+                preparedStatement.setString(4, dishToSave.getDishType().toString());
                 preparedStatement.executeUpdate();
                 connection.commit();
                 createIngredients(dishToSave.getIngredients());
