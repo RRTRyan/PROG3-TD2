@@ -8,6 +8,8 @@ public class Ingredient {
     private double price;
     private CategoryEnum category;
     private Dish dish;
+    private Double quantity;
+    private UnitTypeEnum unit;
 
     public Ingredient(int id, String name, double price, CategoryEnum category, Dish dish) {
         this.id = id;
@@ -16,6 +18,19 @@ public class Ingredient {
         this.category = category;
         this.dish = dish;
         if (this.dish != null) this.dish.getIngredients().add(this);
+        this.quantity = null;
+        this.unit = null;
+    }
+
+    public Ingredient(int id, String name, double price, CategoryEnum category, Dish dish, Double quantity, UnitTypeEnum unit) {
+        this.id = id;
+        this.name = name;
+        this.price = price;
+        this.category = category;
+        this.dish = dish;
+        if (this.dish != null) this.dish.getIngredients().add(this);
+        this.quantity = quantity;
+        this.unit = unit;
     }
 
     public int getId() {
@@ -57,6 +72,22 @@ public class Ingredient {
     public void setDish(Dish dish) {
         this.dish = dish;
         if (this.dish != null) this.dish.getIngredients().add(this);
+    }
+
+    public Double getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(Double quantity) {
+        this.quantity = quantity;
+    }
+
+    public UnitTypeEnum getUnit() {
+        return unit;
+    }
+
+    public void setUnit(UnitTypeEnum unit) {
+        this.unit = unit;
     }
 
     @Override
