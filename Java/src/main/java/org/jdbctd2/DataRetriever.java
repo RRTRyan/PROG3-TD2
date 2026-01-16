@@ -83,8 +83,7 @@ public class DataRetriever {
         }
     }
 
-    public List<Ingredient> createIngredients(List<Ingredient> newIngredients) throws SQLException {
-        Connection connection = dbConnection.getConnection();
+    public List<Ingredient> createIngredients(Connection connection, List<Ingredient> newIngredients) throws SQLException {
         try {
             connection.setAutoCommit(false);
 
@@ -130,13 +129,9 @@ public class DataRetriever {
             ResultSet resultSet = preparedStatement.executeQuery();
             List<Ingredient> ingredients = new ArrayList<>();
             createIngredientList(resultSet, ingredients);
-            connection.commit();
             return ingredients;
         } catch (SQLException | RuntimeException e) {
-            connection.rollback();
             throw new RuntimeException(e);
-        } finally {
-            dbConnection.closeConnection(connection);
         }
     }
 
@@ -144,74 +139,31 @@ public class DataRetriever {
         Connection connection = dbConnection.getConnection();
         try {
             connection.setAutoCommit(false);
-            Dish savedDish = null;
 
-            try {
-                savedDish = findByDishId(dishToSave.getId());
-            } catch (RuntimeException _) {
-            }
+            String sql = "DELETE FROM ingredient WHERE id_dish = ?";
+            PreparedStatement preparedStatement = connection.prepareStatement(sql);
+            preparedStatement.setInt(1, dishToSave.getId());
+            preparedStatement.executeUpdate();
 
-            Dish initialDish = savedDish;
+            createIngredients(connection, dishToSave.getIngredients());
 
-            if (initialDish != null) {
-                List<Ingredient> removedIngredients = initialDish.getIngredients().stream()
-                        .filter(ingredient -> !dishToSave.getIngredients().contains(ingredient))
-                        .toList();
-
-                List<Ingredient> newIngredients = dishToSave.getIngredients().stream()
-                        .filter(ingredient -> ((!removedIngredients.contains(ingredient)) && (!initialDish.getIngredients().contains(ingredient))))
-                        .toList();
-
-                if (!removedIngredients.isEmpty()) {
-                    StringBuilder sql = new StringBuilder("DELETE FROM ingredient WHERE id_dish = ?");
-                    for (int i = 0; i < removedIngredients.size(); i++) {
-                        if (i == 0) {
-                            sql.append(" AND (id = ?");
-                        } else {
-                            sql.append(" OR id = ?");
-                        }
-                        if (i == removedIngredients.size() - 1) {
-                            sql.append(")");
-                        }
-                    }
-                    PreparedStatement ingredientsRemovalStatement = connection.prepareStatement(sql.toString());
-                    ingredientsRemovalStatement.setInt(1, dishToSave.getId());
-                    int i = 2;
-                    for (Ingredient ingredient : removedIngredients) {
-                        ingredientsRemovalStatement.setInt(i++, ingredient.getId());
-                    }
-                    ingredientsRemovalStatement.executeUpdate();
-                    connection.commit();
-                }
-                createIngredients(newIngredients);
-
-                PreparedStatement dishUpdateStatement = connection.prepareStatement("UPDATE dish SET dish_type = CAST(? AS dish_type_enum), name = ?, price = ? WHERE id = ?");
-                dishUpdateStatement.setString(1, dishToSave.getDishType().toString());
-                dishUpdateStatement.setString(2, dishToSave.getName());
-                if (dishToSave.getPrice() != null) {
-                    dishUpdateStatement.setDouble(3, dishToSave.getPrice());
-                } else {
-                    dishUpdateStatement.setNull(3, Types.DOUBLE);
-                }
-                dishUpdateStatement.setInt(4, dishToSave.getId());
-                System.out.println(dishUpdateStatement);
-                dishUpdateStatement.executeUpdate();
-                connection.commit();
-
+            PreparedStatement dishUpdateStatement = connection.prepareStatement(
+                    """
+                            INSERT INTO dish (id, name, dish_type, price) VALUES
+                            (?, ?, ?::dish_type_enum, ?)
+                            ON CONFLICT (id) DO UPDATE
+                            SET name = EXCLUDED.name, dish_type = EXCLUDED.dish_type,price = EXCLUDED.price
+                            RETURNING id
+                            """);
+            dishUpdateStatement.setInt(1, dishToSave.getId());
+            dishUpdateStatement.setString(2, dishToSave.getName());
+            dishUpdateStatement.setString(3, dishToSave.getDishType().toString());
+            if (dishToSave.getPrice() != null) {
+                dishUpdateStatement.setDouble(4, dishToSave.getPrice());
             } else {
-                PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO dish VALUES (?, ?, CAST(? AS dish_type_enum), ?)");
-                preparedStatement.setInt(1, dishToSave.getId());
-                preparedStatement.setString(2, dishToSave.getName());
-                if (dishToSave.getPrice() != null) {
-                    preparedStatement.setDouble(3, dishToSave.getPrice());
-                } else {
-                    preparedStatement.setNull(3, Types.DOUBLE);
-                }
-                preparedStatement.setString(4, dishToSave.getDishType().toString());
-                preparedStatement.executeUpdate();
-                connection.commit();
-                createIngredients(dishToSave.getIngredients());
+                dishUpdateStatement.setNull(4, Types.DOUBLE);
             }
+            dishUpdateStatement.executeQuery();
             connection.commit();
             return findByDishId(dishToSave.getId());
         } catch (SQLException | RuntimeException e) {
@@ -255,7 +207,7 @@ public class DataRetriever {
         try {
             StringBuilder query = new StringBuilder("SELECT i.id AS ingId, i.name AS ingName, i.price AS price, i.category AS category, id_dish AS dishId, d.name AS dishName, dish_type AS dishType FROM ingredient AS i JOIN dish AS d ON d.id = i.id_dish");
             List<String> conditions = new ArrayList<>();
-            if (ingredientName != null ||  category != null ||  dishName != null) {
+            if (ingredientName != null || category != null || dishName != null) {
                 query.append(" WHERE ");
                 if (ingredientName != null) {
                     conditions.add(" i.name ILIKE ? ");
@@ -266,7 +218,7 @@ public class DataRetriever {
                 if (dishName != null) {
                     conditions.add(" d.name ILIKE ? ");
                 }
-                query.append(conditions.stream().reduce((a,b) -> a + " AND " + b).get());
+                query.append(conditions.stream().reduce((a, b) -> a + " AND " + b).get());
             }
             query.append(" LIMIT ? OFFSET ?");
             PreparedStatement preparedStatement = connection.prepareStatement(query.toString());
@@ -288,12 +240,12 @@ public class DataRetriever {
     }
 
     // Helper Functions
-    private void updateTableSequence(String tableName, String sequenceName) throws SQLException {
+    private int updateTableSequence(String tableName, String sequenceName) throws SQLException {
         Connection connection = dbConnection.getConnection();
-        PreparedStatement preparedStatement = connection.prepareStatement("SETVAL(?, (SELECT MAX(id) FROM ?) + 1) ");
+        PreparedStatement preparedStatement = connection.prepareStatement("SETVAL(?, (SELECT MAX(id) FROM ?)) ");
         preparedStatement.setString(1, sequenceName);
         preparedStatement.setString(2, tableName);
-        preparedStatement.executeUpdate();
+        return (preparedStatement.executeQuery().getInt(1) + 1);
     }
 
     private void createIngredientList(ResultSet resultSet, List<Ingredient> ingredients) throws SQLException {

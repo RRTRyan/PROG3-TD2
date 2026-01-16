@@ -68,6 +68,7 @@ public class Main {
         // new Ingredient(7, "Fromage", 1200, CategoryEnum.DAIRY,  saladeFraiche);
         // System.out.println(dataRetriever.saveDish(saladeFraiche));
 
+/*
         System.out.println("\n");
         System.out.println("----- Get & update/save dish grossMargin");
         System.out.println(dataRetriever.findByDishId(1).getGrossMargin());
@@ -76,10 +77,13 @@ public class Main {
         } catch (RuntimeException e) {
             System.out.println(e.toString());
         }
+*/
 
-        // Dish saladeFraiche = new Dish(1, "Salade de fromage", DishTypeEnum.START, new ArrayList<>());
-        // new Ingredient(7, "Fromage", 1200, CategoryEnum.DAIRY,  saladeFraiche);
-        // saladeFraiche.setPrice(3000.00);
-        // System.out.println(dataRetriever.saveDish(saladeFraiche));
+/*
+        Dish saladeFraiche = new Dish(1, "Salade de fromage", DishTypeEnum.START, new ArrayList<>());
+        new Ingredient(6, "Pain", 1200, CategoryEnum.DAIRY,  saladeFraiche);
+        saladeFraiche.setPrice(2000.00);
+        System.out.println(dataRetriever.saveDish(saladeFraiche));
+*/
     }
 }
