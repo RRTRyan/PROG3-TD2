@@ -81,6 +81,11 @@ public class Dish {
     }
 
     public Double getDishCost() {
+        for (Ingredient ingredient : ingredients) {
+            if (ingredient.getQuantity() == null) {
+                throw new RuntimeException("Ingredient [%s, ID=%d] quantity is null".formatted(ingredient.getName(), ingredient.getId()));
+            }
+        }
         return this.ingredients.stream().mapToDouble(ingredient -> (ingredient.getPrice() * ingredient.getQuantity())).sum();
     }
 

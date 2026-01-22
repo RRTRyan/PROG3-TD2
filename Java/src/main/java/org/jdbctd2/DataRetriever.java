@@ -1,6 +1,7 @@
 package org.jdbctd2;
 
 import java.sql.*;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -104,7 +105,7 @@ public class DataRetriever {
             PreparedStatement ingredientInsertStmt = connection.prepareStatement(
                     "INSERT INTO ingredient VALUES " +
                             "(?, ?, ?, CAST(? AS category_enum)), ".repeat(newIngredients.size() - 1) +
-                            "(?, ?, ?, CAST(? AS category_enum))"
+                            "(?, ?, ?, CAST(? AS category_enum)) ON CONFLICT (id) DO NOTHING"
             );
 
             int i = 1;
@@ -315,6 +316,25 @@ public class DataRetriever {
         }
     }
 
+    public Ingredient saveIngredient(Ingredient toSave) throws SQLException {
+        Connection connection = dbConnection.getConnection();
+        try {
+            connection.setAutoCommit(false);
+            createIngredients(List.of(toSave));
+            createStockMovementRecord(connection, toSave);
+            connection.commit();
+            Ingredient ingredient = findIngredientsByCriteria(toSave.getName(), null /*toSave.getCategory()*/, null /*toSave.getDishName()*/, 1,1).getFirst();
+            ingredient.setStockMovementList(getIngredientStockMovementList(connection, toSave.getId()));
+            return ingredient;
+        } catch (SQLException | RuntimeException e) {
+            connection.rollback();
+            throw new RuntimeException(e);
+        } finally {
+            dbConnection.closeConnection(connection);
+        }
+
+    }
+
     // Helper Functions
     private int getNextSequenceValue(Connection connection, String tableName, String sequenceName) throws SQLException {
         try {
@@ -349,5 +369,50 @@ public class DataRetriever {
                     dish
             ));
         }
+    }
+
+    private void createStockMovementRecord(Connection connection, Ingredient ingredient) throws SQLException {
+        try {
+            PreparedStatement ps = connection.prepareStatement(("INSERT INTO stock_movement (id, id_ingredient, quantity, unit, type, creation_datetime) VALUES " +
+                    "(?, ?, ?, ?::unit_type, ?::stock_movement_type, ?), ".repeat(Math.max(((ingredient.getStockMovementList().size()) - 1), 0)) +
+                    "(?, ?, ?, ?::unit_type, ?::stock_movement_type, ?) ON CONFLICT (id) DO NOTHING"));
+            int i = 1;
+            for (StockMovement stockMovement : ingredient.getStockMovementList()) {
+                ps.setInt(i++, stockMovement.getId());
+                ps.setInt(i++, ingredient.getId());
+                ps.setDouble(i++, stockMovement.getValue().getQuantity());
+                ps.setString(i++, stockMovement.getValue().getUnit().toString());
+                ps.setString(i++, stockMovement.getType().toString());
+                ps.setTimestamp(i++, Timestamp.from(stockMovement.getCreationDateTime()));
+            }
+            ps.executeBatch();
+        } catch (SQLException e) {
+            connection.rollback();
+            throw new RuntimeException(e);
+        }
+    }
+
+    private List<StockMovement> getIngredientStockMovementList(Connection connection, Integer ingredientId) throws SQLException {
+        if (connection == null) {
+            connection = dbConnection.getConnection();
+        }
+        try {
+            PreparedStatement ps = connection.prepareStatement("SELECT id, quantity, unit, type, creation_datetime FROM stock_movement WHERE id_ingredient = ?");
+            ps.setInt(1, ingredientId);
+            ResultSet rs = ps.executeQuery();
+            List<StockMovement> stockMovementList = new ArrayList<>();
+            while (rs.next()) {
+                int id =  rs.getInt("id");
+                double quantity = rs.getDouble("quantity");
+                UnitTypeEnum unit = UnitTypeEnum.valueOf(rs.getString("unit"));
+                MovementTypeEnum movementType = MovementTypeEnum.valueOf(rs.getString("type"));
+                Instant creationDateTime = rs.getTimestamp("creation_datetime").toInstant();
+                stockMovementList.add(new StockMovement(id, new StockValue(quantity, unit), movementType, creationDateTime));
+            }
+            return stockMovementList;
+        } catch (RuntimeException | SQLException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 }

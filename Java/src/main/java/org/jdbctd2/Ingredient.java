@@ -1,5 +1,7 @@
 package org.jdbctd2;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 public class Ingredient {
@@ -10,6 +12,7 @@ public class Ingredient {
     private Dish dish;
     private Double quantity;
     private UnitTypeEnum unit;
+    private List<StockMovement> stockMovementList;
 
     public Ingredient(int id, String name, double price, CategoryEnum category, Dish dish) {
         this.id = id;
@@ -17,20 +20,25 @@ public class Ingredient {
         this.price = price;
         this.category = category;
         this.dish = dish;
-        if (this.dish != null) this.dish.getIngredients().add(this);
+        if (this.dish != null)
+            this.dish.getIngredients().add(this);
         this.quantity = null;
         this.unit = null;
+        this.stockMovementList = List.of();
     }
 
-    public Ingredient(int id, String name, double price, CategoryEnum category, Dish dish, Double quantity, UnitTypeEnum unit) {
+    public Ingredient(int id, String name, double price, CategoryEnum category, Dish dish, Double quantity,
+                      UnitTypeEnum unit) {
         this.id = id;
         this.name = name;
         this.price = price;
         this.category = category;
         this.dish = dish;
-        if (this.dish != null) this.dish.getIngredients().add(this);
+        if (this.dish != null)
+            this.dish.getIngredients().add(this);
         this.quantity = quantity;
         this.unit = unit;
+        this.stockMovementList = List.of();
     }
 
     public int getId() {
@@ -71,7 +79,8 @@ public class Ingredient {
 
     public void setDish(Dish dish) {
         this.dish = dish;
-        if (this.dish != null) this.dish.getIngredients().add(this);
+        if (this.dish != null)
+            this.dish.getIngredients().add(this);
     }
 
     public Double getQuantity() {
@@ -90,6 +99,14 @@ public class Ingredient {
         this.unit = unit;
     }
 
+    public List<StockMovement> getStockMovementList() {
+        return stockMovementList;
+    }
+
+    public void setStockMovementList(List<StockMovement> stockMovements) {
+        this.stockMovementList = stockMovements;
+    }
+
     @Override
     public String toString() {
         return "Ingredient{" +
@@ -97,14 +114,19 @@ public class Ingredient {
                 ", name='" + name + '\'' +
                 ", price=" + price +
                 ", category=" + category +
-                ", dishName=" + getDishName() +
+                ", dish=" + getDishName() +
+                ", quantity=" + quantity +
+                ", unit=" + unit +
+                ", remaining stock=" + stockMovementList.toString() +
                 '}';
     }
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Ingredient that)) return false;
-        return id == that.id && Double.compare(price, that.price) == 0 && Objects.equals(name, that.name) && category == that.category;
+        if (!(o instanceof Ingredient that))
+            return false;
+        return id == that.id && Double.compare(price, that.price) == 0 && Objects.equals(name, that.name)
+                && category == that.category;
     }
 
     @Override
@@ -115,4 +137,40 @@ public class Ingredient {
     public String getDishName() {
         return (this.dish != null) ? this.dish.getName() : null;
     }
+
+    public StockValue getStockValueAt(Instant t) {
+        if (this.stockMovementList.isEmpty()) {
+            throw new RuntimeException("Ingredient has no stock history");
+        }
+        double quantity = this.getStockMovementList().stream()
+                .filter(stock -> stock.getCreationDateTime().isBefore(t))
+                .mapToDouble(stockMovement -> {
+                    return switch (stockMovement.getType()) {
+                        case MovementTypeEnum.IN -> stockMovement.getValue().getQuantity();
+                        case MovementTypeEnum.OUT -> -stockMovement.getValue().getQuantity();
+                    };
+                }).sum();
+        return new StockValue(quantity, (this.stockMovementList.getFirst().getValue().unit != null) ? this.stockMovementList.getFirst().getValue().unit : null);
+
+/*
+        return this.getStockMovementList().stream()
+                .filter(stock -> stock.getCreationDateTime().isBefore(t))
+                .max(Comparator.comparing(StockMovement::getCreationDateTime))
+                .orElse(new StockMovement(0, new StockValue(0, UnitTypeEnum.KG), MovementTypeEnum.OUT, Instant.now()))
+                .getValue();
+*/
+    }
+
+/*
+    public double getStockAt(Instant t) {
+        return this.getStockMovementList().stream()
+                .filter(stock -> stock.getCreationDateTime().isBefore(t))
+                .mapToDouble(stockMovement -> {
+                    return switch (stockMovement.getType()) {
+                        case MovementTypeEnum.IN -> stockMovement.getValue().getQuantity();
+                        case MovementTypeEnum.OUT -> -stockMovement.getValue().getQuantity();
+                    };
+                }).sum();
+    }
+*/
 }

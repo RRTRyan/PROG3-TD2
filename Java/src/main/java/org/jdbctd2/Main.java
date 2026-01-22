@@ -1,9 +1,8 @@
 package org.jdbctd2;
 
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -73,9 +72,11 @@ public class Main {
         System.out.println(dataRetriever.saveDish(saladeFraiche));
 */
 
-        // Dish saladeFraiche = new Dish(1, "Salade de fromage", DishTypeEnum.START, new ArrayList<>());
-        // new Ingredient(7, "Fromage", 1200, CategoryEnum.DAIRY,  saladeFraiche);
-        // System.out.println(dataRetriever.saveDish(saladeFraiche));
+/*
+        Dish saladeFraiche = new Dish(1, "Salade de fromage", DishTypeEnum.START, new ArrayList<>());
+        new Ingredient(7, "Fromage", 1200, CategoryEnum.DAIRY,  saladeFraiche);
+        System.out.println(dataRetriever.saveDish(saladeFraiche));
+*/
 
 /*
         System.out.println("\n");
@@ -118,5 +119,17 @@ public class Main {
             System.out.println(dataRetriever.findByDishId(5).getGrossMargin()); // 0
         } catch (RuntimeException e) {System.out.println(e.toString());}
 */
+
+/*
+        dataRetriever.findIngredients(1, 10)
+                .forEach(ingredient -> System.out.println(ingredient.getStockValueAt(Instant.parse("2024-01-06T12:00:00Z"))));
+*/
+
+/*
+        Dish saladeFraiche = new Dish(1, "Salade de fromage", DishTypeEnum.START, new ArrayList<>());
+        Ingredient Fromage = new Ingredient(1, "Tomate", 1200, CategoryEnum.DAIRY,  saladeFraiche);
+        System.out.println(dataRetriever.saveIngredient(Fromage).getStockValueAt(Instant.parse("2024-01-06T12:00:00Z")));
+*/
+
     }
 }
