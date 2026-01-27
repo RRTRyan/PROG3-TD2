@@ -327,7 +327,7 @@ public class DataRetriever {
             createIngredients(List.of(toSave));
             createStockMovementRecord(connection, toSave);
             connection.commit();
-            Ingredient ingredient = findIngredientsByCriteria(toSave.getName(), null /*toSave.getCategory()*/, null /*toSave.getDishName()*/, 1,1).getFirst();
+            Ingredient ingredient = findIngredientsByCriteria(toSave.getName(), toSave.getCategory(), null, 1,1).getFirst();
             ingredient.setStockMovementList(getIngredientStockMovementList(connection, toSave.getId()));
             return ingredient;
         } catch (SQLException | RuntimeException e) {
@@ -337,6 +337,73 @@ public class DataRetriever {
             dbConnection.closeConnection(connection);
         }
 
+    }
+
+    public Order saveOrder(Order  orderToSave) throws SQLException {
+        Connection connection = dbConnection.getConnection();
+        try {
+            connection.setAutoCommit(false);
+
+            PreparedStatement psOrder = connection.prepareStatement("INSERT INTO \"order\"(id, reference, creation_datetime VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING");
+            psOrder.setInt(1, orderToSave.getId());
+            psOrder.setString(2, orderToSave.getReference());
+            psOrder.setTimestamp(3, Timestamp.from(orderToSave.getCreationDateTime()));
+            psOrder.executeUpdate();
+
+            PreparedStatement psDishOrder = connection.prepareStatement("INSERT INTO dishorder(id, id_order, id_dish, quantity) VALUES (?, ?, ?, ?)");
+            for (DishOrder dishOrder : orderToSave.getDishOrders()) {
+                dishOrder.getDish().getIngredientsLinkList().forEach(link -> {
+                  if (link.getIngredient().getStockValueAt(orderToSave.getCreationDateTime()).getQuantity() < (link.getQuantityRequired() * dishOrder.getQuantity())) {
+                      throw new RuntimeException("Unsufficient Ingredient Stock: [%s: Remaining=%f, Needed=%f]"
+                              .formatted(link.getIngredient().getName(),
+                                      link.getIngredient().getStockValueAt(orderToSave.getCreationDateTime()).getQuantity(),
+                                      link.getQuantityRequired()));
+                  };
+                });
+                psDishOrder.setInt(1, dishOrder.getId());
+                psDishOrder.setInt(2, orderToSave.getId());
+                psDishOrder.setInt(3, dishOrder.getDish().getId());
+                psDishOrder.setInt(4, dishOrder.getQuantity());
+                psDishOrder.addBatch();
+            }
+            psDishOrder.executeBatch();
+
+            connection.commit();
+            return findOrderByReference(orderToSave.getReference());
+        } catch (SQLException | RuntimeException e) {
+            connection.rollback();
+            throw new RuntimeException(e);
+        } finally {
+            dbConnection.closeConnection(connection);
+        }
+    }
+
+    public Order findOrderByReference(String reference) throws SQLException {
+        Connection connection = dbConnection.getConnection();
+        try {
+            PreparedStatement psOrder = connection.prepareStatement(
+                    "SELECT o.id AS orderId, o.reference, o.creation_datetime, dio.id AS dishOrderId, dio.id_dish, dio.quantity " +
+                    "FROM \"order\" AS o JOIN dishOrder AS dio ON o.id = dio.id_order " +
+                    "WHERE reference ILIKE ?");
+            psOrder.setString(1, reference);
+            System.out.println(psOrder);
+            ResultSet rs = psOrder.executeQuery();
+            if (rs.next()) {
+                int id = rs.getInt("orderId");
+                String dbReference = rs.getString("reference");
+                Instant creationDateTime = rs.getTimestamp("creation_datetime").toInstant();
+                Order order = new Order(id, dbReference, creationDateTime);
+                do {
+                    order.getDishOrders().add(new DishOrder(rs.getInt("dishOrderId"), this.findByDishId(rs.getInt("id_dish")), rs.getInt("quantity")));
+                } while (rs.next());
+                return order;
+            }
+            throw new SQLException("Order not found");
+        } catch (SQLException | RuntimeException e) {
+            throw new RuntimeException(e);
+        } finally {
+            dbConnection.closeConnection(connection);
+        }
     }
 
     // Helper Functions
@@ -405,6 +472,5 @@ public class DataRetriever {
         } catch (RuntimeException | SQLException e) {
             throw new RuntimeException(e);
         }
-
     }
 }

@@ -4,11 +4,11 @@ import java.util.Objects;
 
 // This class stills needs to be implemented into Dish
 public class DishIngredient {
-    int id;
-    Dish dish;
-    Ingredient ingredient;
-    Double quantityRequired;
-    UnitTypeEnum unit;
+    private int id;
+    private Dish dish;
+    private Ingredient ingredient;
+    private Double quantityRequired;
+    private UnitTypeEnum unit;
 
     public DishIngredient(int id, Dish dish, Ingredient ingredient, Double quantityRequired, UnitTypeEnum unit) {
         this.id = id;

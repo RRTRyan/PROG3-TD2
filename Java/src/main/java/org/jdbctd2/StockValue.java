@@ -3,8 +3,8 @@ package org.jdbctd2;
 import java.util.Objects;
 
 public class StockValue {
-    double quantity;
-    UnitTypeEnum unit;
+    private double quantity;
+    private UnitTypeEnum unit;
 
     public StockValue(double quantity, UnitTypeEnum unit) {
         this.quantity = quantity;

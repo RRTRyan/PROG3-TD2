@@ -95,6 +95,7 @@ public class Main {
         System.out.println(dataRetriever.saveDish(saladeFraiche));
 */
 
+/*
         System.out.println("\n");
         System.out.println("------ getDishCost()");
         System.out.println(dataRetriever.findByDishId(1).getDishCost()); // 250
@@ -102,6 +103,7 @@ public class Main {
         System.out.println(dataRetriever.findByDishId(3).getDishCost()); // 0
         System.out.println(dataRetriever.findByDishId(4).getDishCost()); // 1400
         System.out.println(dataRetriever.findByDishId(5).getDishCost()); // 0
+*/
 
 /*
         System.out.println("\n");
@@ -128,5 +130,8 @@ public class Main {
         System.out.println(dataRetriever.saveIngredient(Fromage).getStockValueAt(Instant.parse("2024-01-06T12:00:00Z")));
 */
 
+/*
+        System.out.println(dataRetriever.findOrderByReference("ORD00001"));
+*/
     }
 }

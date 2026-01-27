@@ -93,7 +93,7 @@ public class Ingredient {
                         case MovementTypeEnum.OUT -> -stockMovement.getValue().getQuantity();
                     };
                 }).sum();
-        return new StockValue(quantity, (this.stockMovementList.getFirst().getValue().unit != null) ? this.stockMovementList.getFirst().getValue().unit : null);
+        return new StockValue(quantity, (this.stockMovementList.getFirst().getValue().getUnit() != null) ? this.stockMovementList.getFirst().getValue().getUnit() : null);
 
 /*
         return this.getStockMovementList().stream()
