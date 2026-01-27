@@ -3,6 +3,7 @@ package org.jdbctd2;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -44,12 +45,10 @@ public class Main {
 /*
         System.out.println("\n");
         System.out.println("------ Create ingredients and return new ones");
-        System.out.println(dataRetriever.createIngredients(Arrays.asList(new Ingredient(7, "Fromage", 1200, CategoryEnum.DAIRY, null), new Ingredient(6, "Oignon", 500, CategoryEnum.VEGETABLE, null))));
-*/
+        System.out.println(dataRetriever.createIngredients(Arrays.asList(new Ingredient(7, "Fromage", 1200, CategoryEnum.DAIRY), new Ingredient(6, "Oignon", 500, CategoryEnum.VEGETABLE))));
 
-/*
         try {
-            System.out.println(dataRetriever.createIngredients(Arrays.asList(new Ingredient(8, "Carotte", 2000, CategoryEnum.VEGETABLE, null), new Ingredient(1, "Laitue", 2000, CategoryEnum.VEGETABLE, null))));
+            System.out.println(dataRetriever.createIngredients(Arrays.asList(new Ingredient(8, "Carotte", 2000, CategoryEnum.VEGETABLE), new Ingredient(1, "Laitue", 2000, CategoryEnum.VEGETABLE))));
         } catch (RuntimeException e) {
             System.out.println(e.toString());
         }
@@ -96,7 +95,6 @@ public class Main {
         System.out.println(dataRetriever.saveDish(saladeFraiche));
 */
 
-/*
         System.out.println("\n");
         System.out.println("------ getDishCost()");
         System.out.println(dataRetriever.findByDishId(1).getDishCost()); // 250
@@ -104,7 +102,6 @@ public class Main {
         System.out.println(dataRetriever.findByDishId(3).getDishCost()); // 0
         System.out.println(dataRetriever.findByDishId(4).getDishCost()); // 1400
         System.out.println(dataRetriever.findByDishId(5).getDishCost()); // 0
-*/
 
 /*
         System.out.println("\n");

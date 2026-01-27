@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DataRetriever {
-    private DBConnection dbConnection;
+    private final DBConnection dbConnection;
 
     public DataRetriever(DBConnection dbConnection) {
         this.dbConnection = dbConnection;
@@ -19,10 +19,10 @@ public class DataRetriever {
                     """
                             SELECT d.id AS dishId, d.name AS dishName, dish_type AS dishType, d.price AS dishPrice,
                                     i.id AS ingId, i.name AS ingName, i.price AS price, i.category AS category,
-                                    quantity_required, unit
+                                    di.id AS dishIngredientId, quantity_required, unit
                             FROM dish AS d
-                            LEFT JOIN dishingredient ON id_dish = d.id
-                            LEFT JOIN ingredient AS i ON id_ingredient = i.id WHERE d.id = ?
+                            JOIN dishingredient AS di ON id_dish = d.id
+                            JOIN ingredient AS i ON id_ingredient = i.id WHERE d.id = ?
                             """);
             preparedStatement.setInt(1, id);
             ResultSet resultSet = preparedStatement.executeQuery();
@@ -45,15 +45,19 @@ public class DataRetriever {
                     String ingredientName = resultSet.getString("ingName");
                     double price = resultSet.getDouble("price");
                     CategoryEnum category = CategoryEnum.valueOf(resultSet.getString("category"));
+
+                    Ingredient newIngredient = new Ingredient(ingredientId, ingredientName, price, category);
+
+                    int dishIngredientId = resultSet.getInt("dishIngredientId");
                     Double quantity = resultSet.getDouble("quantity_required");
                     UnitTypeEnum unitType = UnitTypeEnum.valueOf(resultSet.getString("unit"));
+                    DishIngredient newDishIngredient = new DishIngredient(dishIngredientId, dish, newIngredient, quantity, unitType);
 
                     if (dish != null) {
-                        new Ingredient(ingredientId, ingredientName, price, category, dish, quantity, unitType);
+                        dish.getIngredientsLinkList().add(newDishIngredient);
                     }
                 }
             }
-            preparedStatement.close();
             if (dish == null) {
                 throw new RuntimeException("Dish not found");
             }
@@ -163,19 +167,19 @@ public class DataRetriever {
             preparedStatement.setInt(1, dishToSave.getId());
             preparedStatement.executeUpdate();
 
-            if (!dishToSave.getIngredients().isEmpty()) {
+            if (!dishToSave.getIngredientsLinkList().isEmpty()) {
                 PreparedStatement ingredientInsertStmt = connection.prepareStatement(
                         "INSERT INTO ingredient(id, name, price, category) VALUES " +
-                                "(?, ?, ?, CAST(? AS category_enum)), ".repeat(dishToSave.getIngredients().size() - 1) +
+                                "(?, ?, ?, CAST(? AS category_enum)), ".repeat(dishToSave.getIngredientsLinkList().size() - 1) +
                                 "(?, ?, ?, CAST(? AS category_enum))"
                 );
 
                 int i = 1;
-                for (Ingredient ingredient : dishToSave.getIngredients()) {
-                    ingredientInsertStmt.setInt(i++, ingredient.getId());
-                    ingredientInsertStmt.setString(i++, ingredient.getName());
-                    ingredientInsertStmt.setDouble(i++, ingredient.getPrice());
-                    ingredientInsertStmt.setString(i++, ingredient.getCategory().toString());
+                for (DishIngredient ingredientLink : dishToSave.getIngredientsLinkList()) {
+                    ingredientInsertStmt.setInt(i++, ingredientLink.getIngredient().getId());
+                    ingredientInsertStmt.setString(i++, ingredientLink.getIngredient().getName());
+                    ingredientInsertStmt.setDouble(i++, ingredientLink.getIngredient().getPrice());
+                    ingredientInsertStmt.setString(i++, ingredientLink.getIngredient().getCategory().toString());
                 }
                 ingredientInsertStmt.executeUpdate();
             }
@@ -296,17 +300,17 @@ public class DataRetriever {
                             (?, ?, ?, ?, ?::unit_type)
                     """);
 
-            for (Ingredient ingredient : dish.getIngredients()) {
+            for (DishIngredient ingredientLink : dish.getIngredientsLinkList()) {
                 preparedStatement.setInt(1, getNextSequenceValue(connection,
                         "dishingredient",
                         "dishingredient_id_seq"));
                 preparedStatement.setInt(2, dish.getId());
-                preparedStatement.setInt(3, ingredient.getId());
-                if (ingredient.getQuantity() == null || ingredient.getUnit() == null) {
+                preparedStatement.setInt(3, ingredientLink.getIngredient().getId());
+                if (ingredientLink.getQuantityRequired() == null || ingredientLink.getUnit() == null) {
                     throw new SQLException("Ingredient quantity or unit is null");
                 }
-                preparedStatement.setDouble(4, ingredient.getQuantity());
-                preparedStatement.setString(5, ingredient.getUnit().toString());
+                preparedStatement.setDouble(4, ingredientLink.getQuantityRequired());
+                preparedStatement.setString(5, ingredientLink.getUnit().toString());
                 preparedStatement.addBatch();
             }
             preparedStatement.executeBatch();
@@ -350,23 +354,11 @@ public class DataRetriever {
 
     private void createIngredientList(ResultSet resultSet, List<Ingredient> ingredients) throws SQLException {
         while (resultSet.next()) {
-
-            Dish dish = null;
-            if (resultSet.getObject("dishId") != null) {
-                dish = new Dish(
-                        resultSet.getInt("dishId"),
-                        resultSet.getString("dishName"),
-                        DishTypeEnum.valueOf(resultSet.getString("dishType")),
-                        new ArrayList<>()
-                );
-            }
-
             ingredients.add(new Ingredient(
                     resultSet.getInt("ingId"),
                     resultSet.getString("ingName"),
                     resultSet.getDouble("price"),
-                    CategoryEnum.valueOf(resultSet.getString("category")),
-                    dish
+                    CategoryEnum.valueOf(resultSet.getString("category"))
             ));
         }
     }
