@@ -1,3 +1,4 @@
+\c mini_dish_db;
 ALTER TABLE dish ADD COLUMN IF NOT EXISTS price NUMERIC(10, 2);
 
 UPDATE dish SET price = 2000 WHERE id=1;

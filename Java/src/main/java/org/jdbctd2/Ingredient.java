@@ -77,21 +77,22 @@ public class Ingredient {
                 ", name='" + name + '\'' +
                 ", price=" + price +
                 ", category=" + category +
-                ", stockMovementList=" + stockMovementList.toString() +
                 '}';
     }
 
     public StockValue getStockValueAt(Instant t) {
         if (this.stockMovementList.isEmpty()) {
-            throw new RuntimeException("Ingredient has no stock history");
+            return new StockValue(0D, UnitTypeEnum.KG);
+            // throw new RuntimeException("Ingredient has no stock history");
         }
+        this.getStockMovementList().forEach(stockMovement -> {
+            UnitConversion.convertToKG(stockMovement.getValue(), this.getName());
+        });
         double quantity = this.getStockMovementList().stream()
                 .filter(stock -> stock.getCreationDateTime().isBefore(t))
-                .mapToDouble(stockMovement -> {
-                    return switch (stockMovement.getType()) {
-                        case MovementTypeEnum.IN -> stockMovement.getValue().getQuantity();
-                        case MovementTypeEnum.OUT -> -stockMovement.getValue().getQuantity();
-                    };
+                .mapToDouble(stockMovement -> switch (stockMovement.getType()) {
+                    case MovementTypeEnum.IN -> stockMovement.getValue().getQuantity();
+                    case MovementTypeEnum.OUT -> -stockMovement.getValue().getQuantity();
                 }).sum();
         return new StockValue(quantity, (this.stockMovementList.getFirst().getValue().getUnit() != null) ? this.stockMovementList.getFirst().getValue().getUnit() : null);
 

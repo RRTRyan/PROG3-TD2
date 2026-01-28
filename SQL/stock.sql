@@ -1,3 +1,4 @@
+\c mini_dish_db;
 CREATE TYPE stock_movement_enum AS ENUM ('IN', 'OUT');
 CREATE TABLE stock_movement (
   id SERIAL PRIMARY KEY,

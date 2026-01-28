@@ -1,3 +1,4 @@
+\c mini_dish_db;
 INSERT INTO stock_movement(id, id_ingredient, quantity, unit, type, creation_datetime) VALUES
 (1, 1, 5.0, "IN"::stock_movement_enum, "KG"::unit_type, "2024-01-05T08:00"),
 (2, 1, 0.2, "OUT"::stock_movement_enum, "KG"::unit_type, "2024-01-06T12:00"),

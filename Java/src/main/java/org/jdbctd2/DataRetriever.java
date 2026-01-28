@@ -21,8 +21,8 @@ public class DataRetriever {
                                     i.id AS ingId, i.name AS ingName, i.price AS price, i.category AS category,
                                     di.id AS dishIngredientId, quantity_required, unit
                             FROM dish AS d
-                            JOIN dishingredient AS di ON id_dish = d.id
-                            JOIN ingredient AS i ON id_ingredient = i.id WHERE d.id = ?
+                            LEFT JOIN dishingredient AS di ON id_dish = d.id
+                            LEFT JOIN ingredient AS i ON id_ingredient = i.id WHERE d.id = ?
                             """);
             preparedStatement.setInt(1, id);
             ResultSet resultSet = preparedStatement.executeQuery();
@@ -40,7 +40,7 @@ public class DataRetriever {
                     }
                 }
 
-                if (resultSet.getObject("ingId") != null) {
+                if (resultSet.getObject("ingId") != null && dish != null) {
                     int ingredientId = resultSet.getInt("ingId");
                     String ingredientName = resultSet.getString("ingName");
                     double price = resultSet.getDouble("price");
@@ -52,10 +52,6 @@ public class DataRetriever {
                     Double quantity = resultSet.getDouble("quantity_required");
                     UnitTypeEnum unitType = UnitTypeEnum.valueOf(resultSet.getString("unit"));
                     DishIngredient newDishIngredient = new DishIngredient(dishIngredientId, dish, newIngredient, quantity, unitType);
-
-                    if (dish != null) {
-                        dish.getIngredientsLinkList().add(newDishIngredient);
-                    }
                 }
             }
             if (dish == null) {
@@ -127,8 +123,8 @@ public class DataRetriever {
                             SELECT i.id as ingId, i.name as ingName, i.price, i.category,
                             d.id as dishId, d.name as dishName, dish_type as dishType
                             FROM ingredient AS i
-                            JOIN dishingredient ON i.id = id_ingredient
-                            JOIN dish AS d ON d.id = id_dish
+                            LEFT JOIN dishingredient ON i.id = id_ingredient
+                            LEFT JOIN dish AS d ON d.id = id_dish
                             WHERE 1 = 1
                             """
             );
@@ -171,7 +167,7 @@ public class DataRetriever {
                 PreparedStatement ingredientInsertStmt = connection.prepareStatement(
                         "INSERT INTO ingredient(id, name, price, category) VALUES " +
                                 "(?, ?, ?, CAST(? AS category_enum)), ".repeat(dishToSave.getIngredientsLinkList().size() - 1) +
-                                "(?, ?, ?, CAST(? AS category_enum))"
+                                "(?, ?, ?, CAST(? AS category_enum)) ON CONFLICT (id) DO NOTHING"
                 );
 
                 int i = 1;
@@ -258,7 +254,7 @@ public class DataRetriever {
                             id_dish AS dishId, d.name AS dishName, dish_type AS dishType
                             FROM dish AS d
                             JOIN dishingredient ON d.id = id_dish
-                            JOIN ingredient AS i ON i.id = id_ingredient
+                            RIGHT JOIN ingredient AS i ON i.id = id_ingredient
                             """);
             List<String> conditions = new ArrayList<>();
             if (ingredientName != null || category != null || dishName != null) {
@@ -297,7 +293,7 @@ public class DataRetriever {
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("""
                             INSERT INTO dishingredient (id, id_dish, id_ingredient, quantity_required, unit) VALUES
-                            (?, ?, ?, ?, ?::unit_type)
+                            (?, ?, ?, ?, ?::unit_type) ON CONFLICT (id) DO NOTHING
                     """);
 
             for (DishIngredient ingredientLink : dish.getIngredientsLinkList()) {
@@ -311,9 +307,8 @@ public class DataRetriever {
                 }
                 preparedStatement.setDouble(4, ingredientLink.getQuantityRequired());
                 preparedStatement.setString(5, ingredientLink.getUnit().toString());
-                preparedStatement.addBatch();
+                preparedStatement.execute();
             }
-            preparedStatement.executeBatch();
         } catch (SQLException | RuntimeException e) {
             connection.rollback();
             throw new RuntimeException(e);
@@ -327,7 +322,7 @@ public class DataRetriever {
             createIngredients(List.of(toSave));
             createStockMovementRecord(connection, toSave);
             connection.commit();
-            Ingredient ingredient = findIngredientsByCriteria(toSave.getName(), toSave.getCategory(), null, 1,1).getFirst();
+            Ingredient ingredient = findIngredientsByCriteria(toSave.getName(), toSave.getCategory(), null, 1, 1).getLast();
             ingredient.setStockMovementList(getIngredientStockMovementList(connection, toSave.getId()));
             return ingredient;
         } catch (SQLException | RuntimeException e) {
@@ -339,12 +334,12 @@ public class DataRetriever {
 
     }
 
-    public Order saveOrder(Order  orderToSave) throws SQLException {
+    public Order saveOrder(Order orderToSave) throws SQLException {
         Connection connection = dbConnection.getConnection();
         try {
             connection.setAutoCommit(false);
 
-            PreparedStatement psOrder = connection.prepareStatement("INSERT INTO \"order\"(id, reference, creation_datetime VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING");
+            PreparedStatement psOrder = connection.prepareStatement("INSERT INTO \"order\"(id, reference, creation_datetime) VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING");
             psOrder.setInt(1, orderToSave.getId());
             psOrder.setString(2, orderToSave.getReference());
             psOrder.setTimestamp(3, Timestamp.from(orderToSave.getCreationDateTime()));
@@ -352,13 +347,25 @@ public class DataRetriever {
 
             PreparedStatement psDishOrder = connection.prepareStatement("INSERT INTO dishorder(id, id_order, id_dish, quantity) VALUES (?, ?, ?, ?)");
             for (DishOrder dishOrder : orderToSave.getDishOrders()) {
-                dishOrder.getDish().getIngredientsLinkList().forEach(link -> {
-                  if (link.getIngredient().getStockValueAt(orderToSave.getCreationDateTime()).getQuantity() < (link.getQuantityRequired() * dishOrder.getQuantity())) {
-                      throw new RuntimeException("Unsufficient Ingredient Stock: [%s: Remaining=%f, Needed=%f]"
-                              .formatted(link.getIngredient().getName(),
-                                      link.getIngredient().getStockValueAt(orderToSave.getCreationDateTime()).getQuantity(),
-                                      link.getQuantityRequired()));
-                  };
+                findByDishId(dishOrder.getDish().getId()).getIngredientsLinkList().forEach(link -> {
+                    Ingredient ing = link.getIngredient();
+                    try {
+                        ing.setStockMovementList(getIngredientStockMovementList(connection, ing.getId()));
+                        if (ing.getStockMovementList().size() == 1) {
+                            throw new RuntimeException("Ingredient has never been supplied");
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                    if (UnitConversion.convertToKG(
+                            ing.getStockValueAt(orderToSave.getCreationDateTime()),
+                            ing.getName()).getQuantity()
+                            < (link.getQuantityRequired() * dishOrder.getQuantity())) {
+                        throw new RuntimeException("Unsufficient Ingredient Stock: [%s: Remaining=%f, Needed=%f]"
+                                .formatted(ing.getName(),
+                                        UnitConversion.convertToKG(ing.getStockValueAt(orderToSave.getCreationDateTime()), ing.getName()).getQuantity(),
+                                        link.getQuantityRequired() * dishOrder.getQuantity()));
+                }
                 });
                 psDishOrder.setInt(1, dishOrder.getId());
                 psDishOrder.setInt(2, orderToSave.getId());
@@ -386,7 +393,6 @@ public class DataRetriever {
                     "FROM \"order\" AS o JOIN dishOrder AS dio ON o.id = dio.id_order " +
                     "WHERE reference ILIKE ?");
             psOrder.setString(1, reference);
-            System.out.println(psOrder);
             ResultSet rs = psOrder.executeQuery();
             if (rs.next()) {
                 int id = rs.getInt("orderId");
@@ -421,12 +427,14 @@ public class DataRetriever {
 
     private void createIngredientList(ResultSet resultSet, List<Ingredient> ingredients) throws SQLException {
         while (resultSet.next()) {
-            ingredients.add(new Ingredient(
+            Ingredient ingredient = new Ingredient(
                     resultSet.getInt("ingId"),
                     resultSet.getString("ingName"),
                     resultSet.getDouble("price"),
                     CategoryEnum.valueOf(resultSet.getString("category"))
-            ));
+            );
+            ingredient.setStockMovementList(getIngredientStockMovementList(dbConnection.getConnection(), ingredient.getId()));
+            ingredients.add(ingredient);
         }
     }
 
@@ -461,7 +469,7 @@ public class DataRetriever {
             ResultSet rs = ps.executeQuery();
             List<StockMovement> stockMovementList = new ArrayList<>();
             while (rs.next()) {
-                int id =  rs.getInt("id");
+                int id = rs.getInt("id");
                 double quantity = rs.getDouble("quantity");
                 UnitTypeEnum unit = UnitTypeEnum.valueOf(rs.getString("unit"));
                 MovementTypeEnum movementType = MovementTypeEnum.valueOf(rs.getString("type"));
