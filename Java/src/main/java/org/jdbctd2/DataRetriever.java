@@ -412,6 +412,34 @@ public class DataRetriever {
         }
     }
 
+    // Still does not consider unit
+    public StockValue getStockValueAtDB(Instant t, Integer ingId) throws SQLException {
+        Connection connection = dbConnection.getConnection();
+        try {
+            connection.setAutoCommit(false);
+            PreparedStatement ps = connection.prepareStatement("""
+                    SELECT SUM(
+                    CASE "type"
+                    WHEN 'IN'::stock_movement_enum THEN quantity
+                    ELSE quantity * -1
+                    END
+                    ) AS actual_quantity, unit FROM stock_movement WHERE creation_datetime <= ? AND id_ingredient = ? GROUP BY (id_ingredient, unit) ORDER BY id_ingredient;
+                    """);
+            ps.setTimestamp(1, Timestamp.from(t));
+            ps.setInt(2, ingId);
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return new StockValue(rs.getDouble(1), UnitTypeEnum.valueOf(rs.getString(2)));
+            }
+            throw new SQLException("Stock Movement not found");
+        } catch (SQLException | RuntimeException e) {
+            connection.rollback();
+            dbConnection.closeConnection(connection);
+            throw new RuntimeException(e);
+        }
+    }
+
     // Helper Functions
     private int getNextSequenceValue(Connection connection, String tableName, String sequenceName) throws SQLException {
         try {

@@ -132,10 +132,21 @@ public class Main {
         System.out.println("\n");
         System.out.println("------ getStockValueAt(Instant t)");
         dataRetriever.findIngredients(1, 5)
-                .forEach(ingredient -> System.out.println(ingredient.getStockValueAt(Instant.parse("2024-01-06T18:00:00Z"))));
+                .forEach(ingredient -> System.out.println(ingredient.getId() + " " + ingredient.getStockValueAt(Instant.parse("2024-01-06T18:00:00Z"))));
+
+        System.out.print("\n");
+
+        dataRetriever.findIngredients(1, 5)
+                .forEach(ingredient -> {
+                    try {
+                        System.out.println(ingredient.getId() + " " + dataRetriever.getStockValueAtDB(Instant.parse("2024-01-06T18:00:00Z"), ingredient.getId()));
+                    } catch (SQLException e) {
+                        System.out.println(e.getMessage());
+                    }
+                });
 */
 
-/*
+        /*
         try {
             System.out.println("\n");
             System.out.println("------ saveIngredient()");
@@ -157,6 +168,7 @@ public class Main {
         }
 */
 
+/*
         try {
             System.out.println("\n");
             System.out.println("------ findOrderByReference()");
@@ -165,5 +177,6 @@ public class Main {
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
+*/
     }
 }
