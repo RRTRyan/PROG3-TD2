@@ -112,6 +112,12 @@ public class Main {
         System.out.println(dataRetriever.findByDishId(3).getDishCost()); // 0
         System.out.println(dataRetriever.findByDishId(4).getDishCost()); // 1400
         System.out.println(dataRetriever.findByDishId(5).getDishCost()); // 0
+        System.out.print("\n");
+        System.out.println(dataRetriever.getDishCost(1));
+        System.out.println(dataRetriever.getDishCost(2));
+        System.out.println(dataRetriever.getDishCost(3));
+        System.out.println(dataRetriever.getDishCost(4));
+        System.out.println(dataRetriever.getDishCost(5));
 */
 
 /*
