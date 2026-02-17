@@ -454,6 +454,26 @@ public class DataRetriever {
         return null;
     }
 
+    public Double getGrossMargin(Integer dishId) {
+        Connection connection = dbConnection.getConnection();
+        try {
+            PreparedStatement ps = connection.prepareStatement(
+                    """
+                    SELECT ((SELECT dish.price FROM dish WHERE dish.id = ?) - (SELECT SUM((i.price * di.quantity_required)) FROM ingredient AS i JOIN dishingredient AS di ON di.id_ingredient = i.id WHERE di.id_dish = ?))
+                    """);
+            ps.setInt(1, dishId);
+            ps.setInt(2, dishId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getDouble(1);
+            }
+        } catch (SQLException | RuntimeException e) {
+            dbConnection.closeConnection(connection);
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
+
 
     // Helper Functions
     private int getNextSequenceValue(Connection connection, String tableName, String sequenceName) throws SQLException {

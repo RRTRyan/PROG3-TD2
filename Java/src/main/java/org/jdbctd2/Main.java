@@ -136,6 +136,16 @@ public class Main {
 
 /*
         System.out.println("\n");
+        System.out.println("------ dataRetriever.getGrossMargin()");
+        System.out.println(dataRetriever.getGrossMargin(1));
+        System.out.println(dataRetriever.getGrossMargin(2));
+        System.out.println(dataRetriever.getGrossMargin(3));
+        System.out.println(dataRetriever.getGrossMargin(4));
+        System.out.println(dataRetriever.getGrossMargin(5));
+*/
+
+/*
+        System.out.println("\n");
         System.out.println("------ getStockValueAt(Instant t)");
         dataRetriever.findIngredients(1, 5)
                 .forEach(ingredient -> System.out.println(ingredient.getId() + " " + ingredient.getStockValueAt(Instant.parse("2024-01-06T18:00:00Z"))));
